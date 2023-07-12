@@ -1,0 +1,79 @@
+# docker compose version
+version: "2.15"
+
+services:
+  # RabbitMQ
+  rabbitmq:
+    container_name: rabbit_cont
+    image: "rabbitmq:latest"
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    networks:
+      - privnet
+    ## We do not open a port in order not to get direct access to this service from outside.
+    # ports:
+    #   - "5672:5672"
+    #   - "15672:15672"
+
+  # Redis
+  redis:
+    container_name: redis_cont
+    image: "redis:latest"
+    restart: always
+    networks:
+      - privnet
+    ports:
+      - "6379:6379"
+
+  # MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: mongo_cont
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - privnet
+    ## We do not open a port in order not to get direct access to this service from outside.
+    # ports:
+    #   - "${MONGO_PORT}:27017"
+
+  # Express Server
+  express:
+    container_name: express_cont
+    restart: always
+    build:
+      context: ./express-cont
+      dockerfile: Dockerfile
+    volumes:
+      - /express/node_modules
+      - ./express-cont:/express
+    networks:
+      - privnet
+    ## We do not open a port in order not to get direct access to this service from outside.
+    # ports:
+    #   - "${EXPRESS_PORT}:1337"
+    depends_on:
+      - redis
+      - rabbitmq
+      - mongodb
+
+  # Nginx
+  nginx:
+    container_name: nginx_cont
+    build:
+      context: ./
+      dockerfile: nginx/Dockerfile.deploy
+    depends_on:
+      - express
+    restart: always
+    networks:
+      - privnet
+    ports:
+      - "${NGINX_PORT}:80"
+
+networks:
+  privnet:

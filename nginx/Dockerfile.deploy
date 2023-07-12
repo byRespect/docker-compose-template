@@ -1,0 +1,21 @@
+# FROM nginx
+# COPY ./default.conf /etc/nginx/conf.d/default.conf
+
+## build react app for production
+FROM node:16 as builder
+WORKDIR /react
+COPY ./react ./
+RUN yarn
+RUN yarn build
+
+## change image
+FROM nginx
+## Remove default nginx index page
+RUN rm -rf /usr/share/nginx/html/*
+## We are throwing the files of the application we have compiled to the default location of nginx
+COPY --from=builder /react/build /usr/share/nginx/html
+
+COPY ./nginx/default.conf /etc/nginx/conf.d/default.conf
+## detailed information 
+## https://stackoverflow.com/questions/18861300/how-to-run-nginx-within-a-docker-container-without-halting
+ENTRYPOINT [ "nginx", "-g", "daemon off;" ]

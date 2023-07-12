@@ -1,0 +1,80 @@
+# docker compose version
+version: "2.15"
+
+services:
+  # RabbitMQ
+  rabbitmq:
+    container_name: rabbit_cont
+    image: "rabbitmq:latest"
+    restart: always
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_PORT1}:5672"
+      - "${RABBITMQ_PORT2}:15672"
+
+  # Redis
+  redis:
+    container_name: redis_cont
+    image: "redis:latest"
+    restart: always
+    ports:
+      - "6379:6379"
+
+  # MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: mongo_cont
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    networks:
+      - privnet
+    ports:
+      - "${MONGO_PORT}:27017"
+
+  # Express Server
+  express:
+    container_name: express_cont
+    restart: always
+    build:
+      context: ./express-cont
+      dockerfile: Dockerfile
+    volumes:
+      - ./express-cont/node_modules:/express/node_modules
+      - ./express-cont:/express
+    networks:
+      - privnet
+    ports:
+      - "${EXPRESS_PORT}:1337"
+    depends_on:
+      - redis
+      - rabbitmq
+      - mongodb
+
+  # React
+  react:
+    container_name: react_cont
+    stdin_open: true
+    build:
+      context: ./react
+      dockerfile: Dockerfile
+    volumes:
+      - ./react:/react
+    ports:
+       - "${REACT_PORT}:3000"
+
+  # Nginx
+  nginx:
+    container_name: nginx_cont
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.dev
+    depends_on:
+      - express
+      - react
+    restart: always
+    ports:
+      - "${NGINX_PORT}:80"
